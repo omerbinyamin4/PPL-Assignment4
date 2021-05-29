@@ -33,17 +33,32 @@ export function makePromisedStore<K, V>(): PromisedStore<K, V> {
     }
 }
 
-// export function getAll<K, V>(store: PromisedStore<K, V>, keys: K[]): ??? {
-//     ???
+// export function getAll<K, V>(store: PromisedStore<K, V>, keys: K[]): Promise<V[] | string> {
+//      const p = store.get(keys[0]);
+//      p.then((value) => [value])
+
+//     });
 // }
+
 
 /* 2.2 */
 
-// ??? (you may want to add helper functions here)
-//
-// export function asycMemo<T, R>(f: (param: T) => R): (param: T) => Promise<R> {
-//     ???
-// }
+//??? (you may want to add helper functions here)
+
+export function asycMemo<T, R>(f: (param: T) => R): (param: T) => Promise<R> {
+    const store = makePromisedStore<T, R>();
+    return  (param: T): Promise<R> => {
+        const p = store.get(param);
+        p.then((value) => value);
+        p.catch((param) => {
+            const returnValue = f(param);
+            store.set(param, returnValue);
+            return returnValue;
+        });
+        return p;
+    } 
+}
+
 
 /* 2.3 */
 
