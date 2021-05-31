@@ -22,57 +22,67 @@ export function makePromisedStore<K, V>(): PromisedStore<K, V> {
         set(key: K, value: V) {
             return new Promise<void>((resolve, reject) => {
                 store.set(key, value);
+                resolve();
             });
         },
         delete(key: K) {
             return new Promise<void>((resolve, reject) => {
-                if (store.has(key)) store.delete(key);
+                if (store.has(key)) {
+                    store.delete(key);
+                    resolve();
+                }
                 else reject(MISSING_KEY);
             });
         },
     }
 }
 
-// export function getAll<K, V>(store: PromisedStore<K, V>, keys: K[]): Promise<V[] | string> {
-//      const p = store.get(keys[0]);
-//      p.then((value) => [value])
-
-//     });
-// }
-
-
-/* 2.2 */
-
-//??? (you may want to add helper functions here)
-
-export function asycMemo<T, R>(f: (param: T) => R): (param: T) => Promise<R> {
-    const store = makePromisedStore<T, R>();
-    return  (param: T): Promise<R> => {
-        const p = store.get(param);
-        p.then((value) => value);
-        p.catch((param) => {
-            const returnValue = f(param);
-            store.set(param, returnValue);
-            return returnValue;
-        });
-        return p;
-    } 
+export function getAll<K, V>(store: PromisedStore<K, V>, keys: K[]): Promise<V[]> | Promise<string> {
+    const p : Promise<V>[]  = keys.map(value => store.get(value));
+    return Promise.all(p);
 }
 
+/* 2.2 */
+export function asycMemo<T, R>(f: (param: T) => R): (param: T) => Promise<R> {
+    const store = makePromisedStore<T, R>();
+    return async (param : T) : Promise<R> => {
+        try {
+            return await store.get(param);
+        }
+        catch (e) {
+            await store.set(param, f(param))
+        }
+        return await store.get(param);
+    }
+}
 
 /* 2.3 */
+function* createFGen<T>(generator: Generator<T>,  filterFn: (param: T) => boolean) : Generator<T> {
+    let current = generator.next();
+    while (!current.done) {
+        if (filterFn(current.value))
+            yield current.value
+        current = generator.next();
+    }
+}
 
-// export function lazyFilter<T>(genFn: () => Generator<T>, filterFn: ???): ??? {
-//     ???
-// }
+export function lazyFilter<T>(genFn: () => Generator<T>, filterFn: (param: T) => boolean): () => Generator<T> {
+    return () : Generator<T> => createFGen(genFn(), filterFn);
+}
 
-// export function lazyMap<T, R>(genFn: () => Generator<T>, mapFn: ???): ??? {
-//     ???
-// }
+function* createMGen<T, R>(generator: Generator<T>,  mapFn: (param: T) => R) : Generator<R> {
+    let current = generator.next();
+    while (!current.done) {
+        yield mapFn(current.value);
+        current = generator.next();
+    }
+}
+
+export function lazyMap<T, R>(genFn: () => Generator<T>, mapFn: (param: T) => R): () => Generator<R> {
+    return () : Generator<R> => createMGen(genFn(), mapFn);
+}
 
 /* 2.4 */
-// you can use 'any' in this question
-
-// export async function asyncWaterfallWithRetry(fns: [() => Promise<any>, ...(???)[]]): Promise<any> {
-//     ???
-// }
+export async function asyncWaterfallWithRetry(fns: [() => Promise<any>, ...((param:any) => any)[]]): Promise<any> {
+    
+}
