@@ -12,7 +12,8 @@ import { allT, first, rest, second, isEmpty } from '../shared/list';
 import { parse as p, isToken, isSexpString } from "../shared/parser";
 import { Result, bind, makeFailure, mapResult, makeOk, safe2, safe3 } from "../shared/result";
 import { isArray, isString, isNumericString, isIdentifier } from "../shared/type-predicates";
-import { isTVar, makeFreshTVar, makeTVar, parseTExp, unparseTExp, TVar, TExp } from './TExp51';
+import { typeofProc } from "./L51-typecheck";
+import { isTVar, makeFreshTVar, makeTVar, parseTExp, unparseTExp, TVar, TExp, tvarSetContents } from './TExp51';
 import { makeClassTExp, ClassTExp } from "./TExp51";
 
 /*
@@ -281,6 +282,12 @@ const parseProcExp = (vars: Sexp, rest: Sexp[]): Result<ProcExp> => {
 const isGoodBindings = (bindings: Sexp): bindings is [Sexp, Sexp][] =>
     isArray(bindings) && allT(isArray, bindings);
 
+const isGoodFields = (fields: Sexp): fields is Sexp[] =>
+    isArray(fields) && allT(isIdentifier, fields)
+
+const isGoodTypeName = (typeName: Sexp): typeName is Sexp =>
+    !isArray(typeName) && isIdentifier(typeName)
+
 const parseLetExp = (bindings: Sexp, body: Sexp[]): Result<LetExp> =>
     isEmpty(body) ? makeFailure('Body of "let" cannot be empty') :
     ! isGoodBindings(bindings) ? makeFailure(`Invalid bindings: ${JSON.stringify(bindings)}`) :
@@ -335,8 +342,19 @@ const parseClassExp = (params: Sexp[]): Result<ClassExp> =>
     (params.length != 4) || (params[0] != ':') ? makeFailure(`class must have shape (class [: <type>]? <fields> <methods>) - got ${params.length} params instead`) :
     parseGoodClassExp(params[1], params[2], params[3]);
 
-const parseGoodClassExp = (typeName: Sexp, varDecls: Sexp, bindings: Sexp): Result<ClassExp> =>
-    makeFailure("TODO parseGoodClassExp");
+const parseGoodClassExp = (typeName: Sexp, varDecls: Sexp, bindings: Sexp): Result<ClassExp> =>{
+    if (isGoodTypeName(typeName))
+        return makeFailure('Malformed type name in "Class" expression');
+    const classTypeName = makeTVar(typeName);
+    if (!isGoodFields(varDecls))
+        return makeFailure('Malformed field in "Class" expression');
+    const fields = mapResult(parseVarDecl, varDecls)
+    if (!isGoodBindings(bindings))
+        return makeFailure('Malformed bindings in "Class" expression');
+    const methodsBindings = parseBindings(bindings);
+    return bind(methodsBindings, (methods) => bind(fields, (vars) => makeOk(makeClassExp(classTypeName, vars, methods))));
+}
+    
 
 // sexps has the shape (quote <sexp>)
 export const parseLitExp = (param: Sexp): Result<LitExp> =>
