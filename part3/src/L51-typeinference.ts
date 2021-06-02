@@ -305,5 +305,8 @@ export const typeofSet = (exp: A.SetExp, tenv: E.TEnv): Result<T.VoidTExp> => {
 //      type<method_k>(class-tenv) = mk
 // Then type<class(type fields methods)>(tend) = = [t1 * ... * tn -> type]
 export const typeofClass = (exp: A.ClassExp, tenv: E.TEnv): Result<T.TExp> => {
-    return makeFailure("TODO typeofClass");
+    const cType = A.classExpToClassTExp(exp);
+    const fieldsType = R.map((field) => field.texp, exp.fields);
+    return makeOk(T.makeProcTExp(fieldsType, cType));
+    
 };
