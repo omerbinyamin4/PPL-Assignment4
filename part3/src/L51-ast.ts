@@ -5,7 +5,7 @@
 // L51 extends L5 with:
 // typed class construct
 
-import { concat, chain, join, map, zipWith } from "ramda";
+import { concat, chain, join, map, zipWith, filter, reduce, drop } from "ramda";
 import { Sexp, Token } from 's-expression';
 import { isCompoundSExp, isEmptySExp, isSymbolSExp, makeCompoundSExp, makeEmptySExp, makeSymbolSExp, SExpValue, valueToString } from '../imp/L5-value';
 import { allT, first, rest, second, isEmpty } from '../shared/list';
@@ -285,7 +285,7 @@ const isGoodBindings = (bindings: Sexp): bindings is [Sexp, Sexp][] =>
 const isGoodFields = (fields: Sexp): fields is Sexp[] =>
     isArray(fields) && allT(isIdentifier, fields)
 
-const isGoodTypeName = (typeName: Sexp): typeName is Sexp =>
+const isGoodTypeName = (typeName: Sexp): typeName is string =>
     !isArray(typeName) && isIdentifier(typeName)
 
 const parseLetExp = (bindings: Sexp, body: Sexp[]): Result<LetExp> =>
@@ -343,7 +343,7 @@ const parseClassExp = (params: Sexp[]): Result<ClassExp> =>
     parseGoodClassExp(params[1], params[2], params[3]);
 
 const parseGoodClassExp = (typeName: Sexp, varDecls: Sexp, bindings: Sexp): Result<ClassExp> =>{
-    if (isGoodTypeName(typeName))
+    if (!isGoodTypeName(typeName))
         return makeFailure('Malformed type name in "Class" expression');
     const classTypeName = makeTVar(typeName);
     if (!isGoodFields(varDecls))
@@ -466,9 +466,14 @@ const unparseClassExp = (ce: ClassExp, unparseWithTVars?: boolean): Result<strin
 // L51: Collect named types in AST
 // Collect class expressions in parsed AST so that they can be passed to the type inference module
 
-export const parsedToClassExps = (p: Parsed): ClassExp[] => 
-    // TODO parsedToClassExps
-    [];
+export const parsedToClassExps = (p: Parsed): ClassExp[] => {
+    if (isArray(p) && isProgram(p)){
+        const cleaned : Parsed [] = filter(isDefineExp, p); //only define exp
+        return drop(1, reduce((acc, elem) => concat(acc, parsedToClassExps(elem)), [makeClassExp(makeTVar("will be dropped"), [], [])], cleaned));
+    }
+    else if (isDefineExp(p) && isClassExp(p.val)) return [p.val];
+    else return [];
+}
 
 // L51 
 export const classExpToClassTExp = (ce: ClassExp): ClassTExp => 

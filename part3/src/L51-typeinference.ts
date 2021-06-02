@@ -10,6 +10,7 @@ import { allT, first, rest, isEmpty } from "../shared/list";
 import { isNumber, isString } from '../shared/type-predicates';
 import { Result, makeFailure, makeOk, bind, safe2, zipWithResult, mapResult } from "../shared/result";
 import { isCompoundSexp } from "../shared/parser";
+import { unbox } from "../shared/box";
 
 // Purpose: Make type expressions equivalent by deriving a unifier
 // Return an error if the types are not unifiable.
@@ -103,8 +104,11 @@ const checkNoOccurrence = (tvar: T.TVar, te: T.TExp, exp: A.Exp): Result<true> =
 // so that the user defined types are known to the type inference system.
 // For each class (class : typename ...) add a pair <class.typename classTExp> to TEnv
 export const makeTEnvFromClasses = (parsed: A.Parsed): E.TEnv => {
-    // TODO makeTEnvFromClasses
-    return E.makeEmptyTEnv();
+    const tenv = E.makeEmptyTEnv;
+    const classes : A.ClassExp [] = A.parsedToClassExps(parsed);
+    const names: string[] = R.map((c) => c.typeName.var, classes);
+    const classesTexps = R.map((c) => c.typeName , classes);
+    return E.makeExtendTEnv(names, classesTexps, E.makeEmptyTEnv());
 }
 
 // Purpose: Compute the type of a concrete expression
@@ -243,10 +247,10 @@ export const typeofLetrec = (exp: A.LetrecExp, tenv: E.TEnv): Result<T.TExp> => 
 //   
 // TODO - write the typing rule for define-exp
 export const typeofDefine = (exp: A.DefineExp, tenv: E.TEnv): Result<T.VoidTExp> => {
-    const varName = exp.var.var; //string
-    const value = exp.val; //CExp
-    const varTE = exp.var.texp //Texp
-    const constraints = bind(typeofExp(value, tenv), (typeOfVal: T.TExp) => checkEqualType(varTE, typeOfVal, exp));
+    const varName = exp.var.var; //string "fact", 
+    const value = exp.val; //CExp //body of fact
+    const varTE = exp.var.texp //Texp //t_1
+    const constraints = bind(typeofExp(value, E.makeExtendTEnv([varName], [varTE], tenv)), (typeOfVal: T.TExp) => checkEqualType(varTE, typeOfVal, exp));
     return bind(constraints, () => makeOk(T.makeVoidTExp()));
 };
 
