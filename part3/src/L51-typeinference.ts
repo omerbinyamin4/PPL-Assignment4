@@ -264,10 +264,8 @@ export const typeofProgram = (exp: A.Program, tenv: E.TEnv): Result<T.TExp> =>
 
 const typeofProgramExps = (exp: A.Exp, exps: A.Exp[], tenv: E.TEnv): Result<T.TExp> => {
     return isEmpty(exps) ? typeofExp(exp, tenv) :
-    bind(typeofExp(exp, tenv), () => {
-        return A.isDefineExp(exp) ? typeofExps(exps, E.makeExtendTEnv([exp.var.var], [exp.var.texp], tenv)) :
-        typeofExps(exps, tenv);
-    });
+    bind(typeofExp(exp, tenv), _ => A.isDefineExp(exp) ? typeofProgramExps(first(exps), rest(exps), E.makeExtendTEnv([exp.var.var], [exp.var.texp], tenv)) :
+    typeofProgramExps(first(exps), rest(exps), tenv));
 }
 
 // Purpose: compute the type of a literal expression
@@ -306,7 +304,10 @@ export const typeofSet = (exp: A.SetExp, tenv: E.TEnv): Result<T.VoidTExp> => {
 // Then type<class(type fields methods)>(tend) = = [t1 * ... * tn -> type]
 export const typeofClass = (exp: A.ClassExp, tenv: E.TEnv): Result<T.TExp> => {
     const cType = A.classExpToClassTExp(exp);
-    const fieldsType = R.map((field) => field.texp, exp.fields);
-    return makeOk(T.makeProcTExp(fieldsType, cType));
-    
+    const fieldsType = R.map((field : A.VarDecl) => field.texp, exp.fields);
+    const extEnv = E.makeExtendTEnv(R.map((field : A.VarDecl) => field.var, exp.fields), fieldsType, tenv);
+    const methods = mapResult((binding : A.Binding) => typeofExp(binding.val, extEnv), exp.methods);
+    const methodsFromExp = R.map((binding : A.Binding) => binding.var.texp, exp.methods);
+    const constraint = bind(methods, (texpArray : T.TExp[]) => checkEqualTypes(texpArray, methodsFromExp, exp))
+    return bind(constraint, _ => makeOk(T.makeProcTExp(fieldsType, cType)));
 };

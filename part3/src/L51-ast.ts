@@ -467,8 +467,8 @@ const unparseClassExp = (ce: ClassExp, unparseWithTVars?: boolean): Result<strin
 // Collect class expressions in parsed AST so that they can be passed to the type inference module
 
 export const parsedToClassExps = (p: Parsed): ClassExp[] => {
-    if (isArray(p) && isProgram(p)){
-        const cleaned : Parsed [] = filter(isDefineExp, p); //only define exp
+    if (isProgram(p) &&isArray(p.exps)){
+        const cleaned : Parsed [] = filter(isDefineExp, p.exps); //only define exp
         return drop(1, reduce((acc, elem) => concat(acc, parsedToClassExps(elem)), [makeClassExp(makeTVar("will be dropped"), [], [])], cleaned));
     }
     else if (isDefineExp(p) && isClassExp(p.val)) return [p.val];
