@@ -243,9 +243,10 @@ export const typeofLetrec = (exp: A.LetrecExp, tenv: E.TEnv): Result<T.TExp> => 
 // Purpose: compute the type of a define
 // Typing rule:
 //   (define (var : texp) val)
-//      
-//   
-// TODO - write the typing rule for define-exp
+//   let tenv = extend-tenv((var : texp), tenv)
+//  If type<val>(extend-tenv) = texp
+//  then type<(define (var : texp) val)>(extend-tenv) = void
+
 export const typeofDefine = (exp: A.DefineExp, tenv: E.TEnv): Result<T.VoidTExp> => {
     const varName = exp.var.var; //string "fact", 
     const value = exp.val; //CExp //body of fact
@@ -283,8 +284,9 @@ export const typeofLit = (exp: A.LitExp): Result<T.TExp> =>{
 
 // Purpose: compute the type of a set! expression
 // Typing rule:
-//   (set! var val)
-// TODO - write the typing rule for set-exp
+//  (set! var val)
+//  If type<val>(tenv) = type<var>(tenv)
+//  then type<(set! var val)>(tenv) = void
 export const typeofSet = (exp: A.SetExp, tenv: E.TEnv): Result<T.VoidTExp> => {
     const varName = exp.var.var;
     const varTE = E.applyTEnv(tenv, varName);

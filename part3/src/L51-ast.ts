@@ -5,6 +5,7 @@
 // L51 extends L5 with:
 // typed class construct
 
+import { access } from "fs";
 import { concat, chain, join, map, zipWith, filter, reduce, drop } from "ramda";
 import { Sexp, Token } from 's-expression';
 import { isCompoundSExp, isEmptySExp, isSymbolSExp, makeCompoundSExp, makeEmptySExp, makeSymbolSExp, SExpValue, valueToString } from '../imp/L5-value';
@@ -466,14 +467,16 @@ const unparseClassExp = (ce: ClassExp, unparseWithTVars?: boolean): Result<strin
 // L51: Collect named types in AST
 // Collect class expressions in parsed AST so that they can be passed to the type inference module
 
-export const parsedToClassExps = (p: Parsed): ClassExp[] => {
-    if (isProgram(p) &&isArray(p.exps)){
-        const cleaned : Parsed [] = filter(isDefineExp, p.exps); //only define exp
-        return drop(1, reduce((acc, elem) => concat(acc, parsedToClassExps(elem)), [makeClassExp(makeTVar("will be dropped"), [], [])], cleaned));
-    }
-    else if (isDefineExp(p) && isClassExp(p.val)) return [p.val];
-    else return [];
-}
+export const parsedToClassExps = (p: Parsed): ClassExp[] =>  
+    isAppExp(p) ? parsedToClassExps(p.rator).concat(map(parsedToClassExps, p.rands).reduce((acc, x) => acc.concat(x), [])) :
+    isIfExp(p) ? parsedToClassExps(p.test).concat(parsedToClassExps(p.then)).concat(parsedToClassExps(p.alt)) :
+    isLetExp(p) || isLetrecExp(p) ? map(parsedToClassExps, map((x) => x.val, p.bindings)).concat(map(parsedToClassExps, p.body)).reduce((acc, x) => acc.concat(x), []) :
+    isProcExp(p) ? map(parsedToClassExps, p.body).reduce((acc, x)=>acc.concat(x), []) :
+    isSetExp(p) ? parsedToClassExps(p.val) :
+    isClassExp(p) ? [p] :
+    isDefineExp(p) ? parsedToClassExps(p.val) :
+    isProgram(p) ? map(parsedToClassExps, p.exps).reduce((acc, x) => acc.concat(x), []) :
+    [];   
 
 // L51 
 export const classExpToClassTExp = (ce: ClassExp): ClassTExp => 
